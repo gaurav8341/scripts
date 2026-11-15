@@ -1,0 +1,61 @@
+#!/bin/bash
+# tvplay - play a YouTube URL or local file fullscreen on the TV,
+# with on-screen controls. Works from a terminal, SSH, cron or KDE Connect.
+# Usage: tvplay <youtube-url-or-file>
+#        tvplay --play | --pause | --toggle | --stop
+# Needs: mpv, yt-dlp, socat (for play/pause/toggle)
+
+RUNDIR="/run/user/$(id -u)"
+SOCK="$RUNDIR/mpvsock"
+LOG="$RUNDIR/tvplay.log"
+
+# Send a JSON command to the running mpv over its IPC socket
+mpvcmd() {
+  [ -S "$SOCK" ] || { echo "Nothing is playing"; exit 1; }
+  command -v socat >/dev/null || { echo "Install socat: sudo apt install socat"; exit 1; }
+  echo "$1" | socat - "$SOCK" >/dev/null
+}
+
+case "$1" in
+  --stop)   pkill -u "$USER" -x mpv; exit 0 ;;
+  --pause)  mpvcmd '{"command":["set_property","pause",true]}';  exit 0 ;;
+  --play)   mpvcmd '{"command":["set_property","pause",false]}'; exit 0 ;;
+  --toggle) mpvcmd '{"command":["cycle","pause"]}';              exit 0 ;;
+esac
+
+URL="${1:-$HOME/Videos/alarm.mp4}"
+export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# --- Borrow display/session variables from the running desktop -------------
+PID=""
+for p in plasmashell gnome-shell kwin_wayland xfce4-session cinnamon mate-session; do
+  PID=$(pgrep -u "$USER" -x "$p" | head -n1) && [ -n "$PID" ] && break
+done
+[ -z "$PID" ] && { echo "No desktop session found for $USER (not logged in?)"; exit 1; }
+
+while IFS= read -r -d '' var; do
+  case "$var" in
+    WAYLAND_DISPLAY=*|DISPLAY=*|XDG_RUNTIME_DIR=*|DBUS_SESSION_BUS_ADDRESS=*|XAUTHORITY=*|PULSE_SERVER=*)
+      export "$var" ;;
+  esac
+done < "/proc/$PID/environ"
+
+# --- Find yt-dlp --------------------------------------------------------------
+YTDL=$(command -v yt-dlp)
+[ -z "$YTDL" ] && { echo "yt-dlp not found - install it (see notes)"; exit 1; }
+
+# --- Wake the screen (KDE or GNOME) -------------------------------------------
+kscreen-doctor --dpms on 2>/dev/null || \
+  busctl --user call org.gnome.Mutter.DisplayConfig /org/gnome/Mutter/DisplayConfig \
+    org.gnome.Mutter.DisplayConfig SetPowerSaveMode i 0 2>/dev/null
+
+pkill -u "$USER" -x mpv
+
+setsid -f mpv --fs --fs-screen=1 --force-window=immediate \
+  --hwdec=auto-safe \
+  --osc=yes \
+  --script-opts=osc-visibility=always,osc-layout=bottombar,ytdl_hook-ytdl_path="$YTDL" \
+  --osd-level=1 \
+  --ytdl-format="bestvideo[height<=1080][vcodec!^=av01]+bestaudio/best" \
+  --input-ipc-server="$SOCK" \
+  "$URL" >"$LOG" 2>&1

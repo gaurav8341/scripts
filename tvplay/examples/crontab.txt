@@ -1,0 +1,10 @@
+# Example crontab entries for tvplay. Add with: crontab -e  (as your user, not root)
+
+# Video alarm every day at 07:00
+0 7 * * * /usr/local/bin/tvplay "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Weekdays only at 06:45
+45 6 * * 1-5 /usr/local/bin/tvplay "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Stop the alarm automatically after 30 minutes
+30 7 * * * /usr/local/bin/tvplay --stop
