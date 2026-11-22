@@ -6,6 +6,7 @@ Personal automation scripts and Linux setup notes. Each folder is self-contained
 |---|---|
 | [`tvplay/`](tvplay/README.md) | Play a YouTube video or local file fullscreen on the TV with on-screen controls, from a terminal, SSH, cron or a KDE Connect button. Also works as a video alarm. |
 | [`kdeconnect/`](kdeconnect/README.md) | Keep KDE Connect from dropping: Wi-Fi power saving, phone battery settings, add-by-IP, an auto-refresh cron job, firewall rules |
+| [`investing-tasks/`](investing-tasks/README.md) | Prompts for two Claude scheduled tasks: a weekly portfolio, earnings and policy review and a monthly opportunity scan (India + US), emailed as HTML |
 
 ## Conventions
 
